@@ -1,0 +1,158 @@
+// Prisma schema for the AI Room Sketch-to-3D Render app.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// --- Auth (NextAuth / Auth.js) ---
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  passwordHash  String? // null for OAuth-only accounts
+  consentAt     DateTime? // when the user checked "I agree to the Privacy Policy and Terms of Use"
+
+  plan             String    @default("free") // "free" | "pro"
+  stripeCustomerId String?   @unique
+  stripeSubId      String?   @unique
+  planRenewsAt     DateTime?
+  planCanceledAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  accounts      Account[]
+  sessions      Session[]
+  sketches      Sketch[]
+  renders       Render[]
+  usageEvents   UsageEvent[]
+  emailLogs     EmailLog[]
+  passwordResets PasswordResetToken[]
+  verifications  VerificationToken[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  id        String   @id @default(cuid())
+  identifier String
+  token      String  @unique
+  expires    DateTime
+  userId     String?
+  user       User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([identifier, token])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  expires   DateTime
+  usedAt    DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// --- Core product domain ---
+
+model Sketch {
+  id            String   @id @default(cuid())
+  userId        String
+  imageDataUrl  String // pre-processed sketch image, stored inline for demo purposes
+  widthMeters   Float?
+  heightMeters  Float?
+  roomType      String?
+  notes         String?
+  createdAt     DateTime @default(now())
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  renders Render[]
+
+  @@index([userId])
+}
+
+model Render {
+  id           String   @id @default(cuid())
+  userId       String
+  sketchId     String
+  status       String   @default("pending") // pending | processing | complete | failed
+  sceneJson    String? // structured JSON scene description (walls/doors/windows/fixtures)
+  thumbnailUrl String? // data URL screenshot captured from the 3D viewer
+  source       String   @default("demo") // "claude" | "demo"
+  errorMessage String?
+
+  createdAt   DateTime  @default(now())
+  completedAt DateTime?
+
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sketch    Sketch      @relation(fields: [sketchId], references: [id], onDelete: Cascade)
+  usage     UsageEvent[]
+  emailLogs EmailLog[]
+
+  @@index([userId])
+}
+
+model UsageEvent {
+  id          String   @id @default(cuid())
+  userId      String
+  renderId    String?
+  inputTokens  Int     @default(0)
+  outputTokens Int     @default(0)
+  costUsd      Float   @default(0)
+  createdAt    DateTime @default(now())
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  render Render? @relation(fields: [renderId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+}
+
+model EmailLog {
+  id         String   @id @default(cuid())
+  userId     String
+  renderId   String?
+  toEmail    String
+  message    String?
+  status     String   @default("sent") // "sent" | "demo" | "failed"
+  createdAt  DateTime @default(now())
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  render Render? @relation(fields: [renderId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+}
