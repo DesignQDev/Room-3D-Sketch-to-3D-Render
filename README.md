@@ -8,7 +8,7 @@ render in-browser that you can email to a customer. Built from the developer bri
 
 - **Next.js 16** (App Router, TypeScript, Tailwind CSS v4)
 - **Auth.js (NextAuth v5)** — email/password + optional Google OAuth, Prisma adapter
-- **Prisma + SQLite** — self-contained local database, no external DB needed
+- **Prisma + Postgres** — Vercel Postgres, Supabase, or Neon all work
 - **Three.js via @react-three/fiber** — interactive 3D room viewer
 - **Claude API (Anthropic SDK)** — vision-based sketch interpretation, with a
   deterministic **demo mode** fallback when no API key is set
@@ -22,21 +22,48 @@ the app runs the full signup → sketch → 3D render → email → upgrade loop
 in demo mode, and upgrades to the real service automatically once you add the matching
 API key to `.env`.
 
+## Database
+
+The app needs a Postgres database — locally and in production. Free options that work
+well:
+
+- **Vercel Postgres** (Neon-backed) — in your Vercel project, go to the **Storage** tab →
+  Create Database → Postgres. It gives you a connection string; set that as `DATABASE_URL`
+  in your Vercel project's environment variables.
+- **Supabase** or **Neon** directly — create a project, copy the connection string
+  (use the "connection pooling" string if offered, or the direct one — either works for
+  this app's traffic level) into `DATABASE_URL`.
+
+Use the same connection string locally in `.env` (or provision a second free instance for
+local dev if you'd rather not share data between dev and prod).
+
+Once `DATABASE_URL` points at a real Postgres, apply the schema:
+
+```bash
+npx prisma migrate deploy
+```
+
+`npm run build` also runs this automatically (see `package.json`), so a first deploy to
+Vercel with `DATABASE_URL` set will provision the schema on its own.
+
 ## Getting started
 
 ```bash
 npm install
-npx prisma migrate dev   # first run only — creates prisma/dev.db
+# set DATABASE_URL in .env to a real Postgres connection string (see above)
+npx prisma migrate deploy
 npm run dev
 ```
 
 Open http://localhost:3000. Sign up, upload/paste a sketch photo, confirm dimensions,
-and generate a render — no API keys required for this to work end to end.
+and generate a render — no other API keys are required for this to work end to end.
 
 ## Environment variables
 
-See `.env.example`. Everything is optional except `DATABASE_URL` and `AUTH_SECRET`
-(already set for local dev). Add keys as you're ready to go live with each integration:
+See `.env.example`. `DATABASE_URL` and `AUTH_SECRET` are required (see Database section
+above; generate a real `AUTH_SECRET` with `npx auth secret` for anything beyond local dev
+— **do not use the .env.example placeholder in production**). Everything else is optional
+— add keys as you're ready to go live with each integration:
 
 | Var | Enables |
 |---|---|
