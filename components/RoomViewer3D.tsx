@@ -2,7 +2,7 @@
 
 import { useMemo, useRef } from "react";
 import { Canvas } from "@react-three/fiber";
-import { OrbitControls, Environment } from "@react-three/drei";
+import { OrbitControls, Edges } from "@react-three/drei";
 import type { RoomScene, Wall, Opening, Fixture } from "@/lib/scene-schema";
 
 export type RoomViewerHandle = {
@@ -52,14 +52,16 @@ export default function RoomViewer3D({ scene, className, onReady }: Props) {
         }}
       >
         <color attach="background" args={["#eef1f5"]} />
-        <ambientLight intensity={0.7} />
+        <ambientLight intensity={0.9} />
         <directionalLight
           position={[center[0] + 5, 8, center[2] + 5]}
-          intensity={1.1}
+          intensity={1.2}
           castShadow
         />
-        <Environment preset="apartment" />
-
+        <directionalLight
+          position={[center[0] - 4, 5, center[2] - 4]}
+          intensity={0.4}
+        />
         <Floor scene={scene} />
         {scene.walls.map((wall) => (
           <WallMesh
@@ -91,7 +93,7 @@ function Floor({ scene }: { scene: RoomScene }) {
       receiveShadow
     >
       <planeGeometry args={[scene.widthMeters + 1, scene.lengthMeters + 1]} />
-      <meshStandardMaterial color="#d9d2c3" />
+      <meshStandardMaterial color="#c9b896" />
     </mesh>
   );
 }
@@ -181,6 +183,7 @@ function WallMesh({ wall, openings }: { wall: Wall; openings: Opening[] }) {
               transparent={seg.glass}
               opacity={seg.glass ? 0.45 : 1}
             />
+            <Edges color="#3a3a3a" threshold={10} />
           </mesh>
         );
       })}
@@ -205,7 +208,10 @@ const FIXTURE_COLORS: Record<string, string> = {
 };
 
 function FixtureMesh({ fixture }: { fixture: Fixture }) {
-  const color = fixture.color || FIXTURE_COLORS[fixture.type] || "#b7b2a6";
+  // Prefer our curated per-type palette over whatever color the AI picked —
+  // models tend to pick the same flat color for every fixture, which makes
+  // the whole scene collapse into an indistinguishable blob.
+  const color = FIXTURE_COLORS[fixture.type] || fixture.color || "#b7b2a6";
   return (
     <mesh
       position={[fixture.x, fixture.height / 2, fixture.z]}
@@ -215,6 +221,7 @@ function FixtureMesh({ fixture }: { fixture: Fixture }) {
     >
       <boxGeometry args={[fixture.width, fixture.height, fixture.depth]} />
       <meshStandardMaterial color={color} />
+      <Edges color="#3a3a3a" threshold={10} />
     </mesh>
   );
 }
