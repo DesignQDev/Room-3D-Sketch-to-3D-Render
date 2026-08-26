@@ -24,6 +24,22 @@ const PRICE_PER_OUTPUT_TOKEN = 15 / 1_000_000;
 
 const SCENE_TOOL_NAME = "emit_room_scene";
 
+const FIXTURE_TYPES = [
+  "bath",
+  "shower",
+  "toilet",
+  "vanity",
+  "sink",
+  "bed",
+  "sofa",
+  "table",
+  "counter",
+  "fridge",
+  "stove",
+  "wardrobe",
+  "generic_box",
+] as const;
+
 const SCENE_TOOL = {
   name: SCENE_TOOL_NAME,
   description:
@@ -71,7 +87,12 @@ const SCENE_TOOL = {
           type: "object",
           properties: {
             id: { type: "string" },
-            type: { type: "string" },
+            type: {
+              type: "string",
+              enum: [...FIXTURE_TYPES],
+              description:
+                "Pick the closest match from this list. Use generic_box for anything else (mirror, cabinet, appliance, etc.) and describe it in `label`.",
+            },
             x: { type: "number" },
             z: { type: "number" },
             rotationDeg: { type: "number" },
@@ -167,7 +188,7 @@ async function interpretSketchWithClaude(
     throw new Error("Claude did not return a structured scene");
   }
 
-  const scene = RoomSceneSchema.parse(toolUse.input);
+  const scene = RoomSceneSchema.parse(sanitizeClaudeScene(toolUse.input));
 
   const inputTokens = message.usage?.input_tokens ?? 0;
   const outputTokens = message.usage?.output_tokens ?? 0;
@@ -175,6 +196,60 @@ async function interpretSketchWithClaude(
     inputTokens * PRICE_PER_INPUT_TOKEN + outputTokens * PRICE_PER_OUTPUT_TOKEN;
 
   return { scene, inputTokens, outputTokens, costUsd, source: "claude" };
+}
+
+// Claude follows the tool schema closely but isn't guaranteed to respect
+// every numeric bound or enum in it. Coerce anything out of range instead of
+// letting the strict Zod parse below throw and fail the whole render.
+function sanitizeClaudeScene(raw: unknown): unknown {
+  if (!raw || typeof raw !== "object") return raw;
+  const input = raw as Record<string, unknown>;
+
+  if (typeof input.widthMeters === "number") {
+    input.widthMeters = clamp(input.widthMeters, 1, 20);
+  }
+  if (typeof input.lengthMeters === "number") {
+    input.lengthMeters = clamp(input.lengthMeters, 1, 20);
+  }
+
+  if (Array.isArray(input.walls)) {
+    for (const wall of input.walls) {
+      if (!wall || typeof wall !== "object") continue;
+      const w = wall as Record<string, unknown>;
+      if (typeof w.height === "number") w.height = clamp(w.height, 1.8, 4);
+      if (typeof w.thickness === "number") {
+        w.thickness = clamp(w.thickness, 0.05, 0.5);
+      }
+    }
+  }
+
+  if (Array.isArray(input.openings)) {
+    for (const opening of input.openings) {
+      if (!opening || typeof opening !== "object") continue;
+      const o = opening as Record<string, unknown>;
+      if (o.type !== "door" && o.type !== "window") o.type = "door";
+      if (typeof o.width === "number") o.width = clamp(o.width, 0.3, 3);
+      if (typeof o.sillHeight === "number") {
+        o.sillHeight = clamp(o.sillHeight, 0, 2.5);
+      }
+    }
+  }
+
+  if (Array.isArray(input.fixtures)) {
+    for (const fixture of input.fixtures) {
+      if (!fixture || typeof fixture !== "object") continue;
+      const f = fixture as Record<string, unknown>;
+      if (!FIXTURE_TYPES.includes(f.type as (typeof FIXTURE_TYPES)[number])) {
+        if (!f.label && typeof f.type === "string") f.label = f.type;
+        f.type = "generic_box";
+      }
+      if (typeof f.width === "number") f.width = clamp(f.width, 0.1, 4);
+      if (typeof f.depth === "number") f.depth = clamp(f.depth, 0.1, 4);
+      if (typeof f.height === "number") f.height = clamp(f.height, 0.1, 2.2);
+    }
+  }
+
+  return input;
 }
 
 // Deterministic, zero-cost scene generator used when ANTHROPIC_API_KEY is not
