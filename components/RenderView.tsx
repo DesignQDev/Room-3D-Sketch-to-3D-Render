@@ -146,6 +146,13 @@ export default function RenderView({
         </button>
       </div>
 
+      <details className="mt-6 text-xs text-foreground/60">
+        <summary className="cursor-pointer select-none">Technical details (scene data)</summary>
+        <pre className="mt-2 max-h-80 overflow-auto rounded-md bg-black/5 dark:bg-white/5 p-3 whitespace-pre-wrap break-all">
+          {JSON.stringify(scene, null, 2)}
+        </pre>
+      </details>
+
       {showEmailForm && (
         <form
           onSubmit={handleSendEmail}
