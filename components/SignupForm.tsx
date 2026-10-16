@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { toast } from "sonner";
+import Spinner from "@/components/Spinner";
 
 export default function SignupForm({ googleEnabled }: { googleEnabled: boolean }) {
   const router = useRouter();
@@ -39,11 +40,13 @@ export default function SignupForm({ googleEnabled }: { googleEnabled: boolean }
       const data = await res.json();
       if (!res.ok) {
         setError(data.error || "Something went wrong");
+        setSubmitting(false);
         return;
       }
 
       if (data.verifyUrl) {
         setDemoVerifyUrl(data.verifyUrl);
+        setSubmitting(false);
         return;
       }
 
@@ -59,10 +62,12 @@ export default function SignupForm({ googleEnabled }: { googleEnabled: boolean }
         return;
       }
 
+      // Stay in the "creating account" state until the dashboard has loaded.
       toast.success("Account created!");
       router.push("/dashboard");
       router.refresh();
-    } finally {
+    } catch {
+      setError("Couldn't reach the server. Please try again.");
       setSubmitting(false);
     }
   }
@@ -120,7 +125,7 @@ export default function SignupForm({ googleEnabled }: { googleEnabled: boolean }
         </>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-4 mt-6">
+      <form method="post" onSubmit={handleSubmit} className="space-y-4 mt-6">
         <Field label="Name" htmlFor="name">
           <input
             id="name"
@@ -180,7 +185,13 @@ export default function SignupForm({ googleEnabled }: { googleEnabled: boolean }
           disabled={submitting || !consent}
           className="w-full rounded-md bg-indigo-600 text-white py-2.5 font-medium hover:bg-indigo-500 disabled:opacity-50"
         >
-          {submitting ? "Creating account…" : "Sign up"}
+          {submitting ? (
+            <span className="inline-flex items-center justify-center gap-2">
+              <Spinner /> Creating your account…
+            </span>
+          ) : (
+            "Sign up"
+          )}
         </button>
       </form>
 

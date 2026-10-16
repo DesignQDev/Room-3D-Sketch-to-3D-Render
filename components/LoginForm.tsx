@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
+import Spinner from "@/components/Spinner";
 
 export default function LoginForm({ googleEnabled }: { googleEnabled: boolean }) {
   const router = useRouter();
@@ -27,11 +28,15 @@ export default function LoginForm({ googleEnabled }: { googleEnabled: boolean })
       });
       if (result?.error) {
         setError("Invalid email or password.");
+        setSubmitting(false);
         return;
       }
+      // Stay in the "signing in" state until the next page has loaded and this
+      // form unmounts — the dashboard can take a few seconds on a cold start.
       router.push(callbackUrl);
       router.refresh();
-    } finally {
+    } catch {
+      setError("Couldn't reach the server. Please try again.");
       setSubmitting(false);
     }
   }
@@ -56,7 +61,7 @@ export default function LoginForm({ googleEnabled }: { googleEnabled: boolean })
         </>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-4 mt-6">
+      <form method="post" onSubmit={handleSubmit} className="space-y-4 mt-6">
         <div>
           <label htmlFor="email" className="block text-sm font-medium mb-1">
             Email
@@ -96,7 +101,13 @@ export default function LoginForm({ googleEnabled }: { googleEnabled: boolean })
           disabled={submitting}
           className="w-full rounded-md bg-indigo-600 text-white py-2.5 font-medium hover:bg-indigo-500 disabled:opacity-50"
         >
-          {submitting ? "Logging in…" : "Log in"}
+          {submitting ? (
+            <span className="inline-flex items-center justify-center gap-2">
+              <Spinner /> Signing you in…
+            </span>
+          ) : (
+            "Log in"
+          )}
         </button>
       </form>
 
