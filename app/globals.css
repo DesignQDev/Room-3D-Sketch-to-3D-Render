@@ -25,6 +25,28 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+/* Tailwind v4 no longer gives buttons a pointer cursor; restore it globally so
+   every clickable control behaves consistently. */
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  summary,
+  select,
+  input[type="checkbox"],
+  input[type="radio"],
+  input[type="range"],
+  input[type="file"],
+  label:has(input[type="checkbox"]),
+  label:has(input[type="radio"]) {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  [role="button"][aria-disabled="true"] {
+    cursor: not-allowed;
+  }
+}
+
 .input {
   width: 100%;
   border-radius: 0.375rem;

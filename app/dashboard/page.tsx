@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getTotalSpendUsd, FREE_TIER_CAP_USD } from "@/lib/usage";
+import DeleteRenderButton from "@/components/DeleteRenderButton";
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -19,6 +20,7 @@ export default async function DashboardPage() {
         id: true,
         status: true,
         thumbnailUrl: true,
+        imageMime: true,
         createdAt: true,
         sketch: { select: { roomType: true } },
       },
@@ -76,48 +78,59 @@ export default async function DashboardPage() {
         </div>
       ) : (
         <div className="mt-8 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {renders.map((r) => (
-            <Link
-              key={r.id}
-              href={`/render/${r.id}`}
-              className="rounded-xl border border-black/10 dark:border-white/10 overflow-hidden hover:border-indigo-400 transition-colors"
-            >
-              <div className="h-36 bg-black/5 dark:bg-white/5 flex items-center justify-center text-xs text-foreground/50">
-                {r.thumbnailUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={r.thumbnailUrl}
-                    alt=""
-                    className="h-full w-full object-cover"
-                  />
-                ) : r.status === "processing" || r.status === "pending" ? (
-                  "Generating…"
-                ) : r.status === "failed" ? (
-                  "Failed"
-                ) : (
-                  "No preview"
-                )}
+          {renders.map((r) => {
+            // Renders made with the old 3D viewer completed without an image.
+            const isLegacy = r.status === "complete" && !r.imageMime;
+            return (
+              <div
+                key={r.id}
+                className="rounded-xl border border-black/10 dark:border-white/10 overflow-hidden hover:border-indigo-400 transition-colors flex flex-col"
+              >
+                <Link href={`/render/${r.id}`} className="block">
+                  <div className="h-36 bg-black/5 dark:bg-white/5 flex items-center justify-center text-xs text-foreground/50">
+                    {r.thumbnailUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={r.thumbnailUrl}
+                        alt=""
+                        className="h-full w-full object-cover"
+                      />
+                    ) : r.status === "processing" || r.status === "pending" ? (
+                      "Generating…"
+                    ) : r.status === "failed" ? (
+                      "Failed"
+                    ) : isLegacy ? (
+                      "Old 3D render"
+                    ) : (
+                      "No preview"
+                    )}
+                  </div>
+                  <div className="p-3 pb-1">
+                    <p className="text-sm font-medium capitalize">
+                      {r.sketch.roomType || "Room"}
+                    </p>
+                    <p className="text-xs text-foreground/50">
+                      {new Date(r.createdAt).toLocaleDateString()} ·{" "}
+                      <StatusLabel status={r.status} legacy={isLegacy} />
+                    </p>
+                  </div>
+                </Link>
+                <div className="px-2 pb-2 flex justify-end">
+                  <DeleteRenderButton renderId={r.id} />
+                </div>
               </div>
-              <div className="p-3">
-                <p className="text-sm font-medium capitalize">
-                  {r.sketch.roomType || "Room"}
-                </p>
-                <p className="text-xs text-foreground/50">
-                  {new Date(r.createdAt).toLocaleDateString()} ·{" "}
-                  <StatusLabel status={r.status} />
-                </p>
-              </div>
-            </Link>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
   );
 }
 
-function StatusLabel({ status }: { status: string }) {
-  const label =
-    status === "complete"
+function StatusLabel({ status, legacy }: { status: string; legacy?: boolean }) {
+  const label = legacy
+    ? "No longer available"
+    : status === "complete"
       ? "Complete"
       : status === "failed"
         ? "Failed"

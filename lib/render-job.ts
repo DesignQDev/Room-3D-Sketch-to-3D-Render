@@ -30,15 +30,23 @@ export async function runRenderJob(renderId: string) {
       () => null
     );
 
+    // The user may have deleted this render while it was generating. The
+    // provider still charged us, so always count the spend, but only link it
+    // to the render if the render still exists.
+    const stillExists = await prisma.render.findUnique({
+      where: { id: renderId },
+      select: { id: true },
+    });
     await recordUsage({
       userId: render.userId,
-      renderId,
+      renderId: stillExists ? renderId : undefined,
       inputTokens: result.inputTokens,
       outputTokens: result.outputTokens,
       costUsd: result.costUsd,
     });
 
-    await prisma.render.update({
+    // updateMany: a no-op (rather than an error) if the render was deleted.
+    await prisma.render.updateMany({
       where: { id: renderId },
       data: {
         status: "complete",
@@ -55,7 +63,7 @@ export async function runRenderJob(renderId: string) {
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
     console.error(`[render ${renderId}] generation failed:`, message);
-    await prisma.render.update({
+    await prisma.render.updateMany({
       where: { id: renderId },
       data: { status: "failed", errorMessage: message.slice(0, 1000) },
     });
