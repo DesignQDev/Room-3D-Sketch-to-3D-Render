@@ -61,8 +61,12 @@ Once `DATABASE_URL` points at a real Postgres, apply the schema:
 npx prisma migrate deploy
 ```
 
-`npm run build` also runs this automatically (see `package.json`), so a first deploy to
-Vercel with `DATABASE_URL` set will provision the schema on its own.
+`npm run build` also runs this automatically (via `scripts/migrate-deploy.mjs`), so a
+first deploy to Vercel with `DATABASE_URL` set will provision the schema on its own. The
+script migrates over `DATABASE_URL_UNPOOLED` / `POSTGRES_URL_NON_POOLING` when present
+(Neon's Vercel integration sets these), retries if Prisma's 10-second migration lock
+times out (error `P1002`), and as a last resort runs once without the lock rather than
+failing the deploy.
 
 ## Getting started
 
