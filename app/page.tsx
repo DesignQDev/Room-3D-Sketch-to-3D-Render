@@ -6,12 +6,12 @@ export default function Home() {
       <section className="mx-auto max-w-5xl px-4 py-20 text-center">
         <h1 className="text-4xl sm:text-5xl font-bold tracking-tight">
           Turn a napkin sketch into a
-          <span className="text-indigo-500"> 3D room render</span> in minutes
+          <span className="text-indigo-500"> realistic room render</span> in minutes
         </h1>
         <p className="mt-5 text-lg text-foreground/70 max-w-2xl mx-auto">
-          Photograph a hand-drawn bathroom, kitchen, or any room layout. Our AI reads the
-          walls, doors, windows and fixtures, and builds a navigable 3D model you can
-          share with your customer — no CAD skills required.
+          Photograph your hand-drawn bathroom, kitchen or any room layout, describe the
+          look and feel you&apos;re after, and get a photorealistic 3D render you can
+          send straight to your customer on WhatsApp or SMS — no CAD skills required.
         </p>
         <div className="mt-8 flex items-center justify-center gap-3">
           <Link
@@ -32,18 +32,18 @@ export default function Home() {
       <section className="mx-auto max-w-5xl px-4 pb-24 grid sm:grid-cols-3 gap-6">
         <FeatureCard
           step="1"
-          title="Capture the sketch"
-          body="Snap a photo or upload a hand-drawn floor plan. We auto-crop and clean it up so the AI can read pencil lines and dimensions."
+          title="Snap your sketch"
+          body="Take a photo of your hand-drawn floor plan or upload one. We straighten and clean it up so the pencil lines and dimensions stay readable."
         />
         <FeatureCard
           step="2"
-          title="AI builds the room"
-          body="Claude's vision model interprets walls, openings and fixtures, and outputs a structured 3D scene in seconds."
+          title="Describe the look"
+          body="Tell us the style, colours and materials you have in mind — Scandinavian, industrial, luxury hotel — and our AI renders your layout in that style."
         />
         <FeatureCard
           step="3"
           title="Share with your customer"
-          body="Rotate and inspect the render in-browser, then email it straight to your customer as an image or interactive link."
+          body="Send the finished render to your customer over WhatsApp, SMS or email, with a link that shows a preview picture in the chat."
         />
       </section>
     </div>

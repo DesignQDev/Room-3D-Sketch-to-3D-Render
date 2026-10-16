@@ -32,8 +32,8 @@ export default async function PricingPage() {
           <p className="mt-1 text-3xl font-bold">A$0</p>
           <ul className="mt-4 space-y-2 text-sm text-foreground/70">
             <li>Up to US${FREE_TIER_CAP_USD.toFixed(0)} of AI processing</li>
-            <li>Full 3D viewer</li>
-            <li>Email renders to customers</li>
+            <li>Photorealistic renders from your sketches</li>
+            <li>Share via WhatsApp, SMS and email</li>
             <li>Room3D watermark on exports</li>
           </ul>
         </div>

@@ -33,9 +33,9 @@ export async function sendRenderEmail(params: {
   toEmail: string;
   message?: string;
   viewUrl: string;
-  thumbnailUrl?: string | null;
+  imageUrl?: string | null;
 }) {
-  const { userId, renderId, toEmail, message, viewUrl, thumbnailUrl } = params;
+  const { userId, renderId, toEmail, message, viewUrl, imageUrl } = params;
 
   if (!isEmailConfigured()) {
     await prisma.emailLog.create({
@@ -57,8 +57,8 @@ export async function sendRenderEmail(params: {
     await resend.emails.send({
       from,
       to: toEmail,
-      subject: "Your 3D room render is ready",
-      html: renderEmailHtml({ message, viewUrl, thumbnailUrl }),
+      subject: "Your room render is ready",
+      html: renderEmailHtml({ message, viewUrl, imageUrl }),
     });
     await prisma.emailLog.create({
       data: { userId, renderId, toEmail, message, status: "sent" },
@@ -81,15 +81,15 @@ export async function sendRenderEmail(params: {
 function renderEmailHtml(params: {
   message?: string;
   viewUrl: string;
-  thumbnailUrl?: string | null;
+  imageUrl?: string | null;
 }) {
-  const { message, viewUrl, thumbnailUrl } = params;
+  const { message, viewUrl, imageUrl } = params;
   return `
     <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
-      <h2>Your 3D room render is ready</h2>
+      <h2>Your room render is ready</h2>
       ${message ? `<p>${escapeHtml(message)}</p>` : ""}
-      ${thumbnailUrl ? `<img src="${thumbnailUrl}" alt="Room render" style="width:100%;border-radius:8px;margin:16px 0;" />` : ""}
-      <p><a href="${viewUrl}" style="display:inline-block;padding:10px 16px;background:#111;color:#fff;border-radius:6px;text-decoration:none;">View interactive 3D room</a></p>
+      ${imageUrl ? `<a href="${viewUrl}"><img src="${imageUrl}" alt="Room render" style="width:100%;border-radius:8px;margin:16px 0;" /></a>` : ""}
+      <p><a href="${viewUrl}" style="display:inline-block;padding:10px 16px;background:#111;color:#fff;border-radius:6px;text-decoration:none;">View full-size render</a></p>
     </div>
   `;
 }

@@ -10,10 +10,18 @@ export default async function DashboardPage() {
   if (!userId) redirect("/login");
 
   const [renders, user, spendUsd] = await Promise.all([
+    // Select explicitly: sketches and renders carry large image blobs that the
+    // grid doesn't need (cards use the small thumbnailUrl).
     prisma.render.findMany({
       where: { userId },
       orderBy: { createdAt: "desc" },
-      include: { sketch: true },
+      select: {
+        id: true,
+        status: true,
+        thumbnailUrl: true,
+        createdAt: true,
+        sketch: { select: { roomType: true } },
+      },
     }),
     prisma.user.findUnique({ where: { id: userId } }),
     getTotalSpendUsd(userId),
@@ -74,7 +82,7 @@ export default async function DashboardPage() {
               href={`/render/${r.id}`}
               className="rounded-xl border border-black/10 dark:border-white/10 overflow-hidden hover:border-indigo-400 transition-colors"
             >
-              <div className="h-36 bg-black/5 dark:bg-white/5 flex items-center justify-center">
+              <div className="h-36 bg-black/5 dark:bg-white/5 flex items-center justify-center text-xs text-foreground/50">
                 {r.thumbnailUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
@@ -82,13 +90,12 @@ export default async function DashboardPage() {
                     alt=""
                     className="h-full w-full object-cover"
                   />
+                ) : r.status === "processing" || r.status === "pending" ? (
+                  "Generating…"
+                ) : r.status === "failed" ? (
+                  "Failed"
                 ) : (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={r.sketch.imageDataUrl}
-                    alt=""
-                    className="h-full w-full object-cover opacity-70"
-                  />
+                  "No preview"
                 )}
               </div>
               <div className="p-3">

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { sendRenderEmail } from "@/lib/email";
+import { getAppUrl } from "@/lib/app-url";
 
 const Schema = z.object({
   toEmail: z.string().email(),
@@ -34,7 +35,9 @@ export async function POST(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  const viewUrl = `${process.env.APP_URL || "http://localhost:3000"}/render/${render.id}`;
+  const appUrl = getAppUrl();
+  const viewUrl = `${appUrl}/s/${render.shareToken}`;
+  const imageUrl = `${appUrl}/api/image/${render.shareToken}?variant=preview`;
 
   const result = await sendRenderEmail({
     userId,
@@ -42,7 +45,7 @@ export async function POST(
     toEmail: parsed.data.toEmail,
     message: parsed.data.message,
     viewUrl,
-    thumbnailUrl: render.thumbnailUrl,
+    imageUrl,
   });
 
   return NextResponse.json({ ok: true, status: result.status });

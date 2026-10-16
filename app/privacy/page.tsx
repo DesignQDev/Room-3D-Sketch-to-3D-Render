@@ -10,13 +10,13 @@ export default function PrivacyPage() {
       <h2 className="mt-8 font-semibold">What we collect</h2>
       <p className="mt-2 text-sm text-foreground/80">
         Account details (name, email), sketch photos you upload, the confirmed room
-        dimensions you provide, the AI-generated 3D scene data, and recipient email
+        style description you provide, the AI-generated renders, and recipient email
         addresses when you use &quot;Send to Customer&quot;.
       </p>
 
       <h2 className="mt-8 font-semibold">How we use it</h2>
       <p className="mt-2 text-sm text-foreground/80">
-        To generate your 3D renders, maintain your render history, deliver emails you
+        To generate your renders (your sketch photo and description are sent to our AI image-generation provider, OpenRouter, and the underlying model provider, OpenAI, solely to produce the render), maintain your render history, deliver emails you
         send through the app, track AI processing cost against the free-tier cap, and
         operate your subscription billing.
       </p>

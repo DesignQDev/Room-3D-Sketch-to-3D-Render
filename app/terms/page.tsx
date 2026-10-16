@@ -9,8 +9,8 @@ export default function TermsPage() {
 
       <h2 className="mt-8 font-semibold">The service</h2>
       <p className="mt-2 text-sm text-foreground/80">
-        Room3D lets you upload a hand-drawn room sketch and generates an AI-assisted 3D
-        render of the space. Renders are an interpretive visualization, not an
+        Room3D lets you upload a hand-drawn room sketch and generates a
+        photorealistic AI render of the space. Renders are an interpretive visualization, not an
         architectural or engineering drawing, and should not be relied on for
         construction, permitting, or structural decisions.
       </p>

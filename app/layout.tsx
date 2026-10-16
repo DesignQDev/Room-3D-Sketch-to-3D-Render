@@ -15,9 +15,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Room3D — Sketch to 3D render",
+  title: "Room3D — Sketch to realistic render",
   description:
-    "Photograph a hand-drawn room sketch and get a navigable 3D render in minutes.",
+    "Photograph a hand-drawn room sketch, describe the look you want, and get a realistic render to share with your customer.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

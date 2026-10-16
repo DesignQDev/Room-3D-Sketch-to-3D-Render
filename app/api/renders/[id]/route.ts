@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { STALE_AFTER_MS } from "@/lib/render-job";
 
+// Lightweight status check, polled by the render page while a render is
+// being generated. Deliberately doesn't return any image data.
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -16,45 +18,27 @@ export async function GET(
   const { id } = await params;
   const render = await prisma.render.findFirst({
     where: { id, userId },
-    include: { sketch: true },
+    select: { status: true, errorMessage: true, createdAt: true },
   });
   if (!render) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  return NextResponse.json({ render });
-}
-
-const PatchSchema = z.object({
-  thumbnailUrl: z.string().startsWith("data:image/"),
-});
-
-export async function PATCH(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const session = await auth();
-  const userId = (session?.user as { id?: string } | undefined)?.id;
-  if (!userId) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  const isStale =
+    (render.status === "processing" || render.status === "pending") &&
+    Date.now() - render.createdAt.getTime() > STALE_AFTER_MS;
+  if (isStale) {
+    const errorMessage =
+      "Generation timed out before it finished. Please try again.";
+    await prisma.render.updateMany({
+      where: { id, userId, status: { in: ["processing", "pending"] } },
+      data: { status: "failed", errorMessage },
+    });
+    return NextResponse.json({ status: "failed", errorMessage });
   }
 
-  const { id } = await params;
-  const body = await req.json().catch(() => null);
-  const parsed = PatchSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json({ error: "Invalid input" }, { status: 400 });
-  }
-
-  const existing = await prisma.render.findFirst({ where: { id, userId } });
-  if (!existing) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
-  }
-
-  const render = await prisma.render.update({
-    where: { id },
-    data: { thumbnailUrl: parsed.data.thumbnailUrl },
+  return NextResponse.json({
+    status: render.status,
+    errorMessage: render.errorMessage,
   });
-
-  return NextResponse.json({ render });
 }

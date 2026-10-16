@@ -1,76 +1,37 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
-import dynamic from "next/dynamic";
+import { useState } from "react";
+import Link from "next/link";
 import { toast } from "sonner";
-import type { RoomScene } from "@/lib/scene-schema";
-import type { RoomViewerHandle } from "@/components/RoomViewer3D";
-
-const RoomViewer3D = dynamic(() => import("@/components/RoomViewer3D"), {
-  ssr: false,
-  loading: () => (
-    <div className="flex items-center justify-center h-full text-sm text-foreground/50">
-      Loading 3D viewer…
-    </div>
-  ),
-});
+import ShareButtons from "@/components/ShareButtons";
 
 export default function RenderView({
   renderId,
-  scene,
-  sketchImage,
-  thumbnailUrl,
-  source,
+  shareToken,
+  roomType,
+  description,
+  isDemo,
+  prompt,
+  model,
 }: {
   renderId: string;
-  scene: RoomScene;
-  sketchImage: string;
-  thumbnailUrl: string | null;
-  source: string;
+  shareToken: string;
+  roomType: string | null;
+  description: string | null;
+  isDemo: boolean;
+  prompt: string | null;
+  model: string | null;
 }) {
-  const viewerHandleRef = useRef<RoomViewerHandle | null>(null);
-  const [tab, setTab] = useState<"3d" | "sketch">("3d");
-  const [savedThumb, setSavedThumb] = useState<string | null>(thumbnailUrl);
+  const [tab, setTab] = useState<"render" | "sketch">("render");
   const [showEmailForm, setShowEmailForm] = useState(false);
   const [toEmail, setToEmail] = useState("");
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
 
-  const handleViewerReady = useCallback((handle: RoomViewerHandle) => {
-    viewerHandleRef.current = handle;
-  }, []);
-
-  async function handleCaptureAndSave() {
-    const dataUrl = viewerHandleRef.current?.captureScreenshot();
-    if (!dataUrl) {
-      toast.error("Couldn't capture the 3D view.");
-      return null;
-    }
-    setSavedThumb(dataUrl);
-    await fetch(`/api/renders/${renderId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ thumbnailUrl: dataUrl }),
-    });
-    return dataUrl;
-  }
-
-  async function handleExportImage() {
-    const dataUrl = savedThumb || (await handleCaptureAndSave());
-    if (!dataUrl) return;
-    const a = document.createElement("a");
-    a.href = dataUrl;
-    a.download = `room3d-render-${renderId}.png`;
-    a.click();
-  }
-
   async function handleSendEmail(e: React.FormEvent) {
     e.preventDefault();
     setSending(true);
     try {
-      if (!savedThumb) {
-        await handleCaptureAndSave();
-      }
       const res = await fetch(`/api/renders/${renderId}/send-email`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -95,18 +56,22 @@ export default function RenderView({
   }
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-8 w-full">
+    <div className="mx-auto max-w-4xl px-4 py-8 w-full">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-xl font-semibold capitalize">{scene.roomType} render</h1>
-          <p className="text-xs text-foreground/50">
-            {scene.widthMeters.toFixed(1)}m x {scene.lengthMeters.toFixed(1)}m
-            {source === "demo" && " · demo mode scene"}
-          </p>
+          <h1 className="text-xl font-semibold capitalize">{roomType || "Room"} render</h1>
+          {description && (
+            <p className="text-xs text-foreground/50 max-w-xl">&ldquo;{description}&rdquo;</p>
+          )}
+          {isDemo && (
+            <p className="text-xs text-amber-600">
+              Demo mode: image generation isn&apos;t configured, so this shows your sketch.
+            </p>
+          )}
         </div>
         <div className="flex gap-2">
-          <TabButton active={tab === "3d"} onClick={() => setTab("3d")}>
-            3D view
+          <TabButton active={tab === "render"} onClick={() => setTab("render")}>
+            Render
           </TabButton>
           <TabButton active={tab === "sketch"} onClick={() => setTab("sketch")}>
             Original sketch
@@ -114,44 +79,28 @@ export default function RenderView({
         </div>
       </div>
 
-      <div className="mt-4 rounded-xl border border-black/10 dark:border-white/10 h-[420px] sm:h-[520px] overflow-hidden bg-[#eef1f5]">
-        {tab === "3d" ? (
-          <RoomViewer3D scene={scene} className="h-full w-full" onReady={handleViewerReady} />
-        ) : (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={sketchImage}
-            alt="Original sketch"
-            className="h-full w-full object-contain bg-white"
-          />
-        )}
+      <div className="mt-4 rounded-xl border border-black/10 dark:border-white/10 overflow-hidden bg-white">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={tab === "render" ? `/api/image/${shareToken}` : `/api/renders/${renderId}/sketch`}
+          alt={tab === "render" ? "Generated render" : "Original sketch"}
+          className="w-full max-h-[75vh] object-contain"
+        />
       </div>
 
-      {tab === "3d" && (
-        <p className="mt-2 text-xs text-foreground/50">Drag to rotate, scroll to zoom.</p>
-      )}
+      <ShareButtons shareToken={shareToken} roomType={roomType} />
 
-      <div className="mt-6 flex flex-wrap gap-3">
-        <button
-          onClick={handleExportImage}
-          className="rounded-md border border-black/10 dark:border-white/15 px-4 py-2 text-sm font-medium hover:bg-black/5 dark:hover:bg-white/10"
-        >
-          Export image
-        </button>
+      <div className="mt-4 flex flex-wrap items-center gap-3">
         <button
           onClick={() => setShowEmailForm((s) => !s)}
-          className="rounded-md bg-indigo-600 text-white px-4 py-2 text-sm font-medium hover:bg-indigo-500"
+          className="rounded-md border border-black/10 dark:border-white/15 px-4 py-2 text-sm font-medium hover:bg-black/5 dark:hover:bg-white/10"
         >
-          Send to customer
+          Email it from Room3D
         </button>
+        <Link href="/new" className="text-sm text-indigo-500 hover:underline">
+          + Create another render
+        </Link>
       </div>
-
-      <details className="mt-6 text-xs text-foreground/60">
-        <summary className="cursor-pointer select-none">Technical details (scene data)</summary>
-        <pre className="mt-2 max-h-80 overflow-auto rounded-md bg-black/5 dark:bg-white/5 p-3 whitespace-pre-wrap break-all">
-          {JSON.stringify(scene, null, 2)}
-        </pre>
-      </details>
 
       {showEmailForm && (
         <form
@@ -184,7 +133,7 @@ export default function RenderView({
             />
           </div>
           <p className="text-xs text-foreground/50">
-            The 3D view and a link will be attached automatically.
+            The render and a link to the full-size image are included automatically.
           </p>
           <button
             type="submit"
@@ -194,6 +143,17 @@ export default function RenderView({
             {sending ? "Sending…" : "Send"}
           </button>
         </form>
+      )}
+
+      {prompt && (
+        <details className="mt-6 text-xs text-foreground/60">
+          <summary className="cursor-pointer select-none">
+            Technical details{model ? ` (${model})` : ""}
+          </summary>
+          <pre className="mt-2 max-h-80 overflow-auto rounded-md bg-black/5 dark:bg-white/5 p-3 whitespace-pre-wrap">
+            {prompt}
+          </pre>
+        </details>
       )}
     </div>
   );

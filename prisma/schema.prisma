@@ -91,14 +91,13 @@ model PasswordResetToken {
 // --- Core product domain ---
 
 model Sketch {
-  id            String   @id @default(cuid())
-  userId        String
-  imageDataUrl  String // pre-processed sketch image, stored inline for demo purposes
-  widthMeters   Float?
-  heightMeters  Float?
-  roomType      String?
-  notes         String?
-  createdAt     DateTime @default(now())
+  id           String   @id @default(cuid())
+  userId       String
+  imageDataUrl String // pre-processed sketch photo (data URL), sent to the image model as a reference
+  roomType     String?
+  description  String? // the user's "look and feel" brief
+  viewStyle    String? // "isometric" | "perspective"
+  createdAt    DateTime @default(now())
 
   user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   renders Render[]
@@ -107,20 +106,26 @@ model Sketch {
 }
 
 model Render {
-  id           String   @id @default(cuid())
+  id           String  @id @default(cuid())
   userId       String
   sketchId     String
-  status       String   @default("pending") // pending | processing | complete | failed
-  sceneJson    String? // structured JSON scene description (walls/doors/windows/fixtures)
-  thumbnailUrl String? // data URL screenshot captured from the 3D viewer
-  source       String   @default("demo") // "claude" | "demo"
+  status       String  @default("pending") // pending | processing | complete | failed
+  imageData    String? // generated render, base64 (no data: prefix)
+  imageMime    String? // e.g. image/jpeg
+  thumbnailUrl String? // small JPEG data URL for the dashboard grid
+  prompt       String? // the exact prompt sent to the image model
+  model        String? // image model that produced it
+  source       String  @default("openrouter") // "openrouter" | "demo"
   errorMessage String?
+  // Unguessable token for the public share link / image URL. Defaulted in the
+  // database so rows created before this column existed are backfilled.
+  shareToken   String  @unique @default(dbgenerated("gen_random_uuid()::text"))
 
   createdAt   DateTime  @default(now())
   completedAt DateTime?
 
-  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  sketch    Sketch      @relation(fields: [sketchId], references: [id], onDelete: Cascade)
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sketch    Sketch       @relation(fields: [sketchId], references: [id], onDelete: Cascade)
   usage     UsageEvent[]
   emailLogs EmailLog[]
 

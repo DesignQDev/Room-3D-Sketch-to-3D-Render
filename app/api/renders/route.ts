@@ -1,35 +1,20 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { interpretSketch } from "@/lib/ai";
-import { canGenerateRender, recordUsage } from "@/lib/usage";
+import { canGenerateRender } from "@/lib/usage";
+import { runRenderJob } from "@/lib/render-job";
 
-export const maxDuration = 60;
+// Image generation can take a minute or more. The work runs in after(), which
+// keeps the function alive up to this limit after the response has been sent.
+export const maxDuration = 300;
 
 const CreateRenderSchema = z.object({
   imageDataUrl: z.string().startsWith("data:image/"),
-  widthMeters: z.number().min(1).max(20).nullable().optional(),
-  heightMeters: z.number().min(1).max(20).nullable().optional(),
   roomType: z.string().max(50).nullable().optional(),
-  notes: z.string().max(1000).nullable().optional(),
+  description: z.string().max(1500).nullable().optional(),
+  viewStyle: z.enum(["isometric", "perspective"]).optional(),
 });
-
-export async function GET() {
-  const session = await auth();
-  const userId = (session?.user as { id?: string } | undefined)?.id;
-  if (!userId) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  }
-
-  const renders = await prisma.render.findMany({
-    where: { userId },
-    orderBy: { createdAt: "desc" },
-    include: { sketch: true },
-  });
-
-  return NextResponse.json({ renders });
-}
 
 export async function POST(req: NextRequest) {
   const session = await auth();
@@ -60,67 +45,25 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { imageDataUrl, widthMeters, heightMeters, roomType, notes } =
-    parsed.data;
-
-  const sketch = await prisma.sketch.create({
-    data: {
-      userId,
-      imageDataUrl,
-      widthMeters: widthMeters ?? null,
-      heightMeters: heightMeters ?? null,
-      roomType: roomType ?? null,
-      notes: notes ?? null,
-    },
-  });
+  const { imageDataUrl, roomType, description, viewStyle } = parsed.data;
 
   const render = await prisma.render.create({
     data: {
-      userId,
-      sketchId: sketch.id,
+      user: { connect: { id: userId } },
       status: "processing",
+      sketch: {
+        create: {
+          user: { connect: { id: userId } },
+          imageDataUrl,
+          roomType: roomType ?? null,
+          description: description?.trim() || null,
+          viewStyle: viewStyle ?? "isometric",
+        },
+      },
     },
   });
 
-  try {
-    const result = await interpretSketch({
-      imageDataUrl,
-      widthMeters,
-      heightMeters,
-      roomType,
-      notes,
-    });
+  after(() => runRenderJob(render.id));
 
-    await recordUsage({
-      userId,
-      renderId: render.id,
-      inputTokens: result.inputTokens,
-      outputTokens: result.outputTokens,
-      costUsd: result.costUsd,
-    });
-
-    const updated = await prisma.render.update({
-      where: { id: render.id },
-      data: {
-        status: "complete",
-        sceneJson: JSON.stringify(result.scene),
-        source: result.source,
-        completedAt: new Date(),
-      },
-    });
-
-    return NextResponse.json({ render: updated, scene: result.scene });
-  } catch (err) {
-    await prisma.render.update({
-      where: { id: render.id },
-      data: {
-        status: "failed",
-        errorMessage: err instanceof Error ? err.message : "Unknown error",
-      },
-    });
-    return NextResponse.json(
-      { error: "Failed to generate the 3D render. Please try again." },
-      { status: 500 }
-    );
-  }
+  return NextResponse.json({ id: render.id });
 }
